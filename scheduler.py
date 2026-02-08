@@ -1,152 +1,93 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Pub Attendant Scheduler", layout="wide")
+st.set_page_config(page_title="Pub Scheduler", layout="wide")
 
-# -----------------------------
-# Initialize session storage
-# -----------------------------
-if "attendants" not in st.session_state:
-    st.session_state.attendants = pd.DataFrame(columns=["Name", "Max Hours"])
+# Header image
+_, c, _ = st.columns([1,2,1])
+with c:
+    st.image("img1.jpg", width=380)
 
+# Storage
 if "availability" not in st.session_state:
-    st.session_state.availability = pd.DataFrame(columns=["Name", "Day"])
+    st.session_state.availability = pd.DataFrame(
+        columns=["Name","Email","Tshirt","Day","Shift"]
+    )
 
-if "schedule" not in st.session_state:
-    st.session_state.schedule = pd.DataFrame(columns=["Day", "Shift", "Assigned To"])
-
-# -----------------------------
-# Sidebar navigation
-# -----------------------------
-st.sidebar.title("Pub Scheduler")
-page = st.sidebar.radio(
-    "Menu",
-    ["Attendant Availability", "Manager: Add Attendants", "Manager: Build Schedule", "Schedule Calendar"]
-)
-
-# -----------------------------
-# Shift definitions
-# -----------------------------
-shift_options = {
-    "Monday": [
-        "3:45 PM – 8:00 PM",
-        "8:00 PM – 12:15 AM",
-    ],
-    "Tuesday": [
-        "3:45 PM – 8:00 PM",
-        "8:00 PM – 12:15 AM",
-    ],
-    "Wednesday": [
-        "3:45 PM – 8:00 PM",
-        "8:00 PM – 12:15 AM",
-    ],
-    "Thursday": [
-        "3:45 PM – 8:00 PM",
-        "8:00 PM – 12:15 AM",
-    ],
-    "Friday": [
-        "3:45 PM – 8:30 PM",
-        "8:30 PM – 1:15 AM",
-    ],
-    "Saturday": [
-        "3:45 PM – 8:00 PM",
-        "8:00 PM – 12:15 AM",
-    ],
+# Shift schedule
+shift_map = {
+    d: ["3:45–8:00", "8:00–12:15"] for d in
+    ["Monday","Tuesday","Wednesday","Thursday","Saturday"]
 }
+shift_map["Friday"] = ["3:45–8:30", "8:30–1:15"]
 
-# -----------------------------
-# Attendant Availability Page
-# -----------------------------
-if page == "Attendant Availability":
-    st.title("Submit Availability")
+# Sidebar
+page = st.sidebar.radio("Menu", ["Submit Availability","Calendar View"])
 
-    if st.session_state.attendants.empty:
-        st.info("Manager must add attendants first.")
-    else:
-        person = st.selectbox("Your Name", st.session_state.attendants["Name"])
-        days = list(shift_options.keys())
-        available_days = st.multiselect("Select days you can work", days)
+# -------------------------
+# Submit Availability
+# -------------------------
+if page == "Submit Availability":
+    st.title("Pub Attendant Availability")
 
-        if st.button("Submit Availability"):
-            st.session_state.availability = st.session_state.availability[
-                st.session_state.availability["Name"] != person
-            ]
+    left, right = st.columns([3,1])
 
-            for d in available_days:
-                new_row = pd.DataFrame([[person, d]], columns=["Name", "Day"])
-                st.session_state.availability = pd.concat(
-                    [st.session_state.availability, new_row], ignore_index=True
-                )
+    with left:
+        name = st.text_input("Full Name")
+        email = st.text_input("UChicago Email")
+        tshirt = st.selectbox("T-Shirt Size", ["XS","S","M","L","XL","XXL"])
 
-            st.success("Availability updated")
+    with right:
+        st.image("img2.jpg", width=150)
 
-    st.subheader("Current Availability")
-    st.dataframe(st.session_state.availability, use_container_width=True)
+    selected = []
+    st.subheader("Weekly Shift Selection")
 
-# -----------------------------
-# Manager — Add Attendants
-# -----------------------------
-if page == "Manager: Add Attendants":
-    st.title("Add Pub Attendants")
+    cols = st.columns(6)
+    for col, (day, shifts) in zip(cols, shift_map.items()):
+        with col:
+            st.markdown(f"**{day}**")
+            for s in shifts:
+                if st.checkbox(s, key=f"{day}{s}"):
+                    selected.append((day, s))
 
-    name = st.text_input("Attendant Name")
-    max_hours = st.number_input("Max Weekly Hours", min_value=1, max_value=40, value=10)
+    if st.button("Submit"):
+        if not name:
+            st.error("Enter name")
+        elif "@uchicago.edu" not in email:
+            st.error("Use UChicago email")
+        elif len(selected) == 0 or len(selected) > 4:
+            st.error("Select 1–4 shifts")
+        else:
+            df = st.session_state.availability
+            df = df[df.Email != email]
+            for d, s in selected:
+                df.loc[len(df)] = [name, email, tshirt, d, s]
+            st.session_state.availability = df
+            st.success("Saved!")
 
-    if st.button("Add Attendant"):
-        if name:
-            new_row = pd.DataFrame([[name, max_hours]], columns=["Name", "Max Hours"])
-            st.session_state.attendants = pd.concat(
-                [st.session_state.attendants, new_row], ignore_index=True
-            )
-            st.success(f"Added {name}")
-
-    st.dataframe(st.session_state.attendants, use_container_width=True)
-
-# -----------------------------
-# Manager — Build Schedule
-# -----------------------------
-if page == "Manager: Build Schedule":
-    st.title("Build Weekly Schedule")
-
-    day = st.selectbox("Day", list(shift_options.keys()))
-    shift = st.selectbox("Shift", shift_options[day])
-
-    available_people = st.session_state.availability[
-        st.session_state.availability["Day"] == day
-    ]["Name"].unique()
-
-    if len(available_people) > 0:
-        assigned = st.selectbox("Assign Attendant", available_people)
-
-        if st.button("Add Shift"):
-            new_row = pd.DataFrame(
-                [[day, shift, assigned]],
-                columns=["Day", "Shift", "Assigned To"],
-            )
-            st.session_state.schedule = pd.concat(
-                [st.session_state.schedule, new_row], ignore_index=True
-            )
-            st.success("Shift added")
-    else:
-        st.warning("No attendants available for this day")
-
-# -----------------------------
+# -------------------------
 # Calendar View
-# -----------------------------
-if page == "Schedule Calendar":
-    st.title("Weekly Schedule Calendar")
+# -------------------------
+else:
+    st.title("Availability Calendar")
 
-    if st.session_state.schedule.empty:
-        st.info("No schedule created yet.")
+    df = st.session_state.availability
+    if df.empty:
+        st.info("No availability yet.")
     else:
-        calendar_df = st.session_state.schedule.pivot_table(
-            index="Shift",
-            columns="Day",
-            values="Assigned To",
-            aggfunc="first",
+        st.dataframe(
+            df.pivot_table(index="Shift", columns="Day",
+                           values="Name",
+                           aggfunc=lambda x: ", ".join(x)),
+            use_container_width=True
         )
 
-        st.dataframe(calendar_df, use_container_width=True)
+        st.subheader("T-Shirt Sizes")
+        st.dataframe(
+            df[["Name","Email","Tshirt"]].drop_duplicates(),
+            use_container_width=True
+        )
 
-        csv = st.session_state.schedule.to_csv(index=False).encode("utf-8")
-        st.download_button("Download Schedule CSV", csv, "schedule.csv", "text/csv")
+st.markdown("---")
+st.caption("Made by ankitdixit@uchicago.edu")
