@@ -23,7 +23,6 @@ def connect_sheet():
 
     client = gspread.authorize(creds)
 
-    # Open by spreadsheet ID (reliable for deployment)
     sheet = client.open_by_key(
         "1xOjW0SiEzDZzBjJy2qc0GxXlhd9RrE7ynSdqaYSMdWQ"
     ).sheet1
@@ -55,7 +54,10 @@ shift_map = {
     "Saturday": ["3:45–8:00", "8:00–12:15"],
 }
 
-page = st.sidebar.radio("Menu", ["Submit Availability", "Calendar View"])
+page = st.sidebar.radio(
+    "Menu",
+    ["Submit Availability", "Calendar View", "My Schedule", "Admin"]
+)
 
 # -------------------------
 # SUBMIT AVAILABILITY
@@ -85,10 +87,14 @@ if page == "Submit Availability":
                     selected.append((day, s))
 
     if st.button("Submit"):
+        df = read_sheet()
+
         if not name:
             st.error("Enter name")
         elif "@uchicago.edu" not in email:
             st.error("Use UChicago email")
+        elif email in df["Email"].values:
+            st.error("You already submitted availability.")
         elif len(selected) == 0 or len(selected) > 4:
             st.error("Select 1–4 shifts")
         else:
@@ -100,9 +106,9 @@ if page == "Submit Availability":
             st.success("Availability saved!")
 
 # -------------------------
-# CALENDAR VIEW
+# CALENDAR VIEW + DASHBOARD
 # -------------------------
-else:
+elif page == "Calendar View":
     st.title("Availability Calendar")
 
     df = read_sheet()
@@ -110,6 +116,11 @@ else:
     if df.empty:
         st.info("No availability yet.")
     else:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total attendants", df["Email"].nunique())
+        col2.metric("Total shift selections", len(df))
+        col3.metric("Days covered", df["Day"].nunique())
+
         calendar = df.pivot_table(
             index="Shift",
             columns="Day",
@@ -124,6 +135,42 @@ else:
             df[["Name", "Email", "Tshirt"]].drop_duplicates(),
             use_container_width=True,
         )
+
+# -------------------------
+# MY SCHEDULE
+# -------------------------
+elif page == "My Schedule":
+    st.title("My Schedule")
+
+    email_lookup = st.text_input("Enter your UChicago email")
+
+    if email_lookup:
+        df = read_sheet()
+        user_df = df[df["Email"] == email_lookup]
+
+        if user_df.empty:
+            st.info("No shifts found.")
+        else:
+            st.dataframe(user_df[["Day", "Shift"]])
+
+# -------------------------
+# ADMIN PAGE
+# -------------------------
+elif page == "Admin":
+    st.title("Admin Panel")
+
+    password = st.text_input("Admin password", type="password")
+
+    if password == st.secrets["admin_password"]:
+        df = read_sheet()
+        st.dataframe(df, use_container_width=True)
+
+        if st.button("Reset Quarter"):
+            sheet = connect_sheet()
+            sheet.clear()
+            st.success("Sheet cleared.")
+    else:
+        st.info("Enter admin password to continue.")
 
 # -------------------------
 # FOOTER
