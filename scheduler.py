@@ -34,7 +34,6 @@ def read_sheet():
     sheet = connect_sheet()
     data = sheet.get_all_records()
 
-    # Handle empty sheet safely
     if not data:
         return pd.DataFrame(
             columns=["Name", "Email", "Tshirt", "Day", "Shift"]
@@ -164,7 +163,7 @@ elif page == "My Schedule":
             st.dataframe(user_df[["Day", "Shift"]])
 
 # -------------------------
-# ADMIN
+# ADMIN PAGE
 # -------------------------
 elif page == "Admin":
     st.title("Admin Panel")
@@ -177,8 +176,8 @@ elif page == "Admin":
 
         if st.button("Reset Quarter"):
             sheet = connect_sheet()
-            sheet.clear()
-            st.success("Sheet cleared.")
+            sheet.resize(rows=1)  # keeps header row
+            st.success("Quarter reset — headers preserved.")
     else:
         st.info("Enter admin password to continue.")
 
