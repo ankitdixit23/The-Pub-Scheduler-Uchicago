@@ -8,6 +8,7 @@ st.set_page_config(page_title="Pub Scheduler", layout="wide")
 # -------------------------
 # GOOGLE SHEETS CONNECTION
 # -------------------------
+@st.cache_resource
 def connect_sheet():
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -21,8 +22,14 @@ def connect_sheet():
     )
 
     client = gspread.authorize(creds)
-    sheet = client.open("Pub Scheduler Winter 2026").sheet1
+
+    # Open by spreadsheet ID (reliable for deployment)
+    sheet = client.open_by_key(
+        "1xOjW0SiEzDZzBjJy2qc0GxXlhd9RrE7ynSdqaYSMdWQ"
+    ).sheet1
+
     return sheet
+
 
 def read_sheet():
     sheet = connect_sheet()
@@ -32,7 +39,7 @@ def read_sheet():
 # -------------------------
 # HEADER
 # -------------------------
-_, c, _ = st.columns([1,2,1])
+_, c, _ = st.columns([1, 2, 1])
 with c:
     st.image("img1.jpg", width=380)
 
@@ -56,12 +63,12 @@ page = st.sidebar.radio("Menu", ["Submit Availability", "Calendar View"])
 if page == "Submit Availability":
     st.title("Pub Attendant Availability")
 
-    left, right = st.columns([3,1])
+    left, right = st.columns([3, 1])
 
     with left:
         name = st.text_input("Full Name")
         email = st.text_input("UChicago Email")
-        tshirt = st.selectbox("T-Shirt Size", ["XS","S","M","L","XL","XXL"])
+        tshirt = st.selectbox("T-Shirt Size", ["XS", "S", "M", "L", "XL", "XXL"])
 
     with right:
         st.image("img2.jpg", width=150)
@@ -110,12 +117,12 @@ else:
             aggfunc=lambda x: ", ".join(x),
         )
 
-        st.dataframe(calendar, width="stretch")
+        st.dataframe(calendar, use_container_width=True)
 
         st.subheader("T-Shirt Sizes")
         st.dataframe(
-            df[["Name","Email","Tshirt"]].drop_duplicates(),
-            width="stretch"
+            df[["Name", "Email", "Tshirt"]].drop_duplicates(),
+            use_container_width=True,
         )
 
 # -------------------------
