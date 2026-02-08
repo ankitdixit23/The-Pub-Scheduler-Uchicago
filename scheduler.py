@@ -36,7 +36,7 @@ def read_sheet():
 
     if not data:
         return pd.DataFrame(
-            columns=["Name", "Email", "Tshirt", "Day", "Shift"]
+            columns=["Name", "Email", "Tshirt", "Day", "Shift", "Approved"]
         )
 
     df = pd.DataFrame(data)
@@ -110,25 +110,26 @@ if page == "Submit Availability":
             sheet = connect_sheet()
 
             for d, s in selected:
-                sheet.append_row([name, email, tshirt, d, s])
+                sheet.append_row([name, email, tshirt, d, s, "No"])
 
             st.success("Availability saved!")
 
 # -------------------------
-# CALENDAR VIEW
+# CALENDAR VIEW (APPROVED ONLY)
 # -------------------------
 elif page == "Calendar View":
-    st.title("Availability Calendar")
+    st.title("Approved Schedule")
 
     df = read_sheet()
+    df = df[df["Approved"] == "Yes"]
 
     if df.empty:
-        st.info("No availability yet.")
+        st.info("No approved shifts yet.")
     else:
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total attendants", df["Email"].nunique())
-        col2.metric("Total shift selections", len(df))
-        col3.metric("Days covered", df["Day"].nunique())
+        col1.metric("Approved attendants", df["Email"].nunique())
+        col2.metric("Approved shifts", len(df))
+        col3.metric("Days scheduled", df["Day"].nunique())
 
         calendar = df.pivot_table(
             index="Shift",
@@ -138,12 +139,6 @@ elif page == "Calendar View":
         )
 
         st.dataframe(calendar, use_container_width=True)
-
-        st.subheader("T-Shirt Sizes")
-        st.dataframe(
-            df[["Name", "Email", "Tshirt"]].drop_duplicates(),
-            use_container_width=True,
-        )
 
 # -------------------------
 # MY SCHEDULE
@@ -155,15 +150,15 @@ elif page == "My Schedule":
 
     if email_lookup:
         df = read_sheet()
-        user_df = df[df["Email"] == email_lookup]
+        user_df = df[(df["Email"] == email_lookup) & (df["Approved"] == "Yes")]
 
         if user_df.empty:
-            st.info("No shifts found.")
+            st.info("No approved shifts found.")
         else:
             st.dataframe(user_df[["Day", "Shift"]])
 
 # -------------------------
-# ADMIN PAGE
+# ADMIN PANEL
 # -------------------------
 elif page == "Admin":
     st.title("Admin Panel")
@@ -174,9 +169,32 @@ elif page == "Admin":
         df = read_sheet()
         st.dataframe(df, use_container_width=True)
 
+        st.subheader("Approve Shifts")
+
+        pending = df[df["Approved"] != "Yes"]
+
+        if pending.empty:
+            st.info("No pending approvals.")
+        else:
+            selections = []
+
+            for i, row in pending.iterrows():
+                label = f"{row['Name']} — {row['Day']} {row['Shift']}"
+                if st.checkbox(label, key=f"approve_{i}"):
+                    selections.append(i)
+
+            if st.button("Approve Selected"):
+                sheet = connect_sheet()
+
+                for idx in selections:
+                    sheet.update_cell(idx + 2, 6, "Yes")
+
+                st.success("Approved selected shifts.")
+                st.rerun()
+
         if st.button("Reset Quarter"):
             sheet = connect_sheet()
-            sheet.resize(rows=1)  # keeps header row
+            sheet.resize(rows=1)
             st.success("Quarter reset — headers preserved.")
     else:
         st.info("Enter admin password to continue.")
