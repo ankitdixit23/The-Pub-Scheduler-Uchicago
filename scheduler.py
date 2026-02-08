@@ -6,7 +6,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 st.set_page_config(page_title="Pub Scheduler", layout="wide")
 
 # -------------------------
-# GOOGLE SHEETS STORAGE
+# GOOGLE SHEETS CONNECTION
 # -------------------------
 def connect_sheet():
     scope = [
@@ -14,8 +14,10 @@ def connect_sheet():
         "https://www.googleapis.com/auth/drive",
     ]
 
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        "credentials.json", scope
+    creds_dict = st.secrets["gcp_service_account"]
+
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(
+        creds_dict, scope
     )
 
     client = gspread.authorize(creds)
@@ -46,10 +48,10 @@ shift_map = {
     "Saturday": ["3:45–8:00", "8:00–12:15"],
 }
 
-page = st.sidebar.radio("Menu", ["Submit Availability","Calendar View"])
+page = st.sidebar.radio("Menu", ["Submit Availability", "Calendar View"])
 
 # -------------------------
-# SUBMIT PAGE
+# SUBMIT AVAILABILITY
 # -------------------------
 if page == "Submit Availability":
     st.title("Pub Attendant Availability")
@@ -88,7 +90,7 @@ if page == "Submit Availability":
             for d, s in selected:
                 sheet.append_row([name, email, tshirt, d, s])
 
-            st.success("Availability saved permanently!")
+            st.success("Availability saved!")
 
 # -------------------------
 # CALENDAR VIEW
