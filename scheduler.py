@@ -33,7 +33,17 @@ def connect_sheet():
 def read_sheet():
     sheet = connect_sheet()
     data = sheet.get_all_records()
-    return pd.DataFrame(data)
+
+    # Handle empty sheet safely
+    if not data:
+        return pd.DataFrame(
+            columns=["Name", "Email", "Tshirt", "Day", "Shift"]
+        )
+
+    df = pd.DataFrame(data)
+    df.columns = df.columns.str.strip()
+    return df
+
 
 # -------------------------
 # HEADER
@@ -106,7 +116,7 @@ if page == "Submit Availability":
             st.success("Availability saved!")
 
 # -------------------------
-# CALENDAR VIEW + DASHBOARD
+# CALENDAR VIEW
 # -------------------------
 elif page == "Calendar View":
     st.title("Availability Calendar")
@@ -154,7 +164,7 @@ elif page == "My Schedule":
             st.dataframe(user_df[["Day", "Shift"]])
 
 # -------------------------
-# ADMIN PAGE
+# ADMIN
 # -------------------------
 elif page == "Admin":
     st.title("Admin Panel")
