@@ -1,31 +1,55 @@
 import streamlit as st
 import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="Pub Scheduler", layout="wide")
 
-# Header image
+# -------------------------
+# GOOGLE SHEETS STORAGE
+# -------------------------
+def connect_sheet():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        "credentials.json", scope
+    )
+
+    client = gspread.authorize(creds)
+    sheet = client.open("Pub Scheduler Winter 2026").sheet1
+    return sheet
+
+def read_sheet():
+    sheet = connect_sheet()
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
+
+# -------------------------
+# HEADER
+# -------------------------
 _, c, _ = st.columns([1,2,1])
 with c:
     st.image("img1.jpg", width=380)
 
-# Storage
-if "availability" not in st.session_state:
-    st.session_state.availability = pd.DataFrame(
-        columns=["Name","Email","Tshirt","Day","Shift"]
-    )
-
-# Shift schedule
+# -------------------------
+# SHIFT MAP
+# -------------------------
 shift_map = {
-    d: ["3:45–8:00", "8:00–12:15"] for d in
-    ["Monday","Tuesday","Wednesday","Thursday","Saturday"]
+    "Monday": ["3:45–8:00", "8:00–12:15"],
+    "Tuesday": ["3:45–8:00", "8:00–12:15"],
+    "Wednesday": ["3:45–8:00", "8:00–12:15"],
+    "Thursday": ["3:45–8:00", "8:00–12:15"],
+    "Friday": ["3:45–8:30", "8:30–1:15"],
+    "Saturday": ["3:45–8:00", "8:00–12:15"],
 }
-shift_map["Friday"] = ["3:45–8:30", "8:30–1:15"]
 
-# Sidebar
 page = st.sidebar.radio("Menu", ["Submit Availability","Calendar View"])
 
 # -------------------------
-# Submit Availability
+# SUBMIT PAGE
 # -------------------------
 if page == "Submit Availability":
     st.title("Pub Attendant Availability")
@@ -59,35 +83,41 @@ if page == "Submit Availability":
         elif len(selected) == 0 or len(selected) > 4:
             st.error("Select 1–4 shifts")
         else:
-            df = st.session_state.availability
-            df = df[df.Email != email]
+            sheet = connect_sheet()
+
             for d, s in selected:
-                df.loc[len(df)] = [name, email, tshirt, d, s]
-            st.session_state.availability = df
-            st.success("Saved!")
+                sheet.append_row([name, email, tshirt, d, s])
+
+            st.success("Availability saved permanently!")
 
 # -------------------------
-# Calendar View
+# CALENDAR VIEW
 # -------------------------
 else:
     st.title("Availability Calendar")
 
-    df = st.session_state.availability
+    df = read_sheet()
+
     if df.empty:
         st.info("No availability yet.")
     else:
-        st.dataframe(
-            df.pivot_table(index="Shift", columns="Day",
-                           values="Name",
-                           aggfunc=lambda x: ", ".join(x)),
-            use_container_width=True
+        calendar = df.pivot_table(
+            index="Shift",
+            columns="Day",
+            values="Name",
+            aggfunc=lambda x: ", ".join(x),
         )
+
+        st.dataframe(calendar, width="stretch")
 
         st.subheader("T-Shirt Sizes")
         st.dataframe(
             df[["Name","Email","Tshirt"]].drop_duplicates(),
-            use_container_width=True
+            width="stretch"
         )
 
+# -------------------------
+# FOOTER
+# -------------------------
 st.markdown("---")
 st.caption("Made by ankitdixit@uchicago.edu")
