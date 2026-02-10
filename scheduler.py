@@ -16,17 +16,15 @@ def connect_sheet():
     ]
 
     creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"],
+        dict(st.secrets["gcp_service_account"]),
         scopes=scope,
     )
 
     client = gspread.authorize(creds)
 
-    sheet = client.open_by_key(
+    return client.open_by_key(
         "1xOjW0SiEzDZzBjJy2qc0GxXlhd9RrE7ynSdqaYSMdWQ"
     ).sheet1
-
-    return sheet
 
 
 def read_sheet():
@@ -125,11 +123,6 @@ elif page == "Calendar View":
     if df.empty:
         st.info("No approved shifts yet.")
     else:
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Approved attendants", df["Email"].nunique())
-        col2.metric("Approved shifts", len(df))
-        col3.metric("Days scheduled", df["Day"].nunique())
-
         calendar = df.pivot_table(
             index="Shift",
             columns="Day",
@@ -168,33 +161,19 @@ elif page == "Admin":
         df = read_sheet()
         st.dataframe(df, use_container_width=True)
 
-        st.subheader("Approve Shifts")
-
         pending = df[df["Approved"] != "Yes"]
 
-        if pending.empty:
-            st.info("No pending approvals.")
-        else:
-            selections = []
-
-            for i, row in pending.iterrows():
-                label = f"{row['Name']} — {row['Day']} {row['Shift']}"
-                if st.checkbox(label, key=f"approve_{i}"):
-                    selections.append(i)
-
-            if st.button("Approve Selected"):
+        for i, row in pending.iterrows():
+            label = f"{row['Name']} — {row['Day']} {row['Shift']}"
+            if st.checkbox(label, key=f"approve_{i}"):
                 sheet = connect_sheet()
-
-                for idx in selections:
-                    sheet.update_cell(idx + 2, 6, "Yes")
-
-                st.success("Approved selected shifts.")
+                sheet.update_cell(i + 2, 6, "Yes")
                 st.rerun()
 
         if st.button("Reset Quarter"):
             sheet = connect_sheet()
             sheet.resize(rows=1)
-            st.success("Quarter reset — headers preserved.")
+            st.success("Quarter reset.")
 
     else:
         st.info("Enter admin password to continue.")
