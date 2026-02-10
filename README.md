@@ -10,7 +10,7 @@ Built for **The Pub at the University of Chicago**.
 
 Launch the scheduler here:
 
-https://the-pub-scheduler-uchicago-tmupxwmkkcq3m3vuondgcr.streamlit.app/
+https://the-pub-scheduler-uchicago.streamlit.app/
 
 ---
 
@@ -109,4 +109,5 @@ University of Chicago
 MPP Candidate (2026)
 
 License
+
 Internal scheduling tool for The Pub.
