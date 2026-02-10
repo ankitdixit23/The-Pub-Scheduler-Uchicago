@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Pub Scheduler", layout="wide")
 
@@ -11,14 +11,13 @@ st.set_page_config(page_title="Pub Scheduler", layout="wide")
 @st.cache_resource
 def connect_sheet():
     scope = [
-        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive",
     ]
 
-    creds_dict = st.secrets["gcp_service_account"]
-
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(
-        creds_dict, scope
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scope,
     )
 
     client = gspread.authorize(creds)
@@ -100,7 +99,7 @@ if page == "Submit Availability":
 
         if not name:
             st.error("Enter name")
-        elif "@uchicago.edu" not in email:
+        elif not email.endswith("@uchicago.edu"):
             st.error("Use UChicago email")
         elif email in df["Email"].values:
             st.error("You already submitted availability.")
@@ -115,7 +114,7 @@ if page == "Submit Availability":
             st.success("Availability saved!")
 
 # -------------------------
-# CALENDAR VIEW (APPROVED ONLY)
+# CALENDAR VIEW
 # -------------------------
 elif page == "Calendar View":
     st.title("Approved Schedule")
@@ -196,6 +195,7 @@ elif page == "Admin":
             sheet = connect_sheet()
             sheet.resize(rows=1)
             st.success("Quarter reset — headers preserved.")
+
     else:
         st.info("Enter admin password to continue.")
 
