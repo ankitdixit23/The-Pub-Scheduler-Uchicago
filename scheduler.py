@@ -78,10 +78,20 @@ if page == "Submit Availability":
         email = st.text_input("UChicago Email")
         tshirt = st.selectbox("T-Shirt Size", ["XS", "S", "M", "L", "XL", "XXL"])
 
-        max_shifts = st.selectbox(
+        # ---- NEW DROPDOWN WITH HOURS ----
+        shift_options = {
+            "1 shift (4.25 hours)": 1,
+            "2 shifts (8.5 hours)": 2,
+            "3 shifts (12.75 hours)": 3,
+            "4 shifts (17.0 hours)": 4,
+        }
+
+        selected_label = st.selectbox(
             "Maximum shifts you want per week",
-            [1, 2, 3, 4]
+            list(shift_options.keys())
         )
+
+        max_shifts = shift_options[selected_label]
 
     with right:
         st.image("img2.jpg", width=150)
