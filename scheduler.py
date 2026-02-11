@@ -33,7 +33,7 @@ def read_sheet():
 
     if not data:
         return pd.DataFrame(
-            columns=["Name", "Email", "Tshirt", "Day", "Shift", "Approved"]
+            columns=["Name", "Email", "Tshirt", "Day", "Shift", "Approved", "MaxShifts"]
         )
 
     df = pd.DataFrame(data)
@@ -78,6 +78,11 @@ if page == "Submit Availability":
         email = st.text_input("UChicago Email")
         tshirt = st.selectbox("T-Shirt Size", ["XS", "S", "M", "L", "XL", "XXL"])
 
+        max_shifts = st.selectbox(
+            "Maximum shifts you want per week",
+            [1, 2, 3, 4]
+        )
+
     with right:
         st.image("img2.jpg", width=150)
 
@@ -105,10 +110,8 @@ if page == "Submit Availability":
             st.error("Select 1–4 shifts")
         else:
             sheet = connect_sheet()
-
             for d, s in selected:
-                sheet.append_row([name, email, tshirt, d, s, "No"])
-
+                sheet.append_row([name, email, tshirt, d, s, "No", max_shifts])
             st.success("Availability saved!")
 
 # -------------------------
@@ -129,7 +132,6 @@ elif page == "Calendar View":
             values="Name",
             aggfunc=lambda x: ", ".join(x),
         )
-
         st.dataframe(calendar, use_container_width=True)
 
 # -------------------------
@@ -164,7 +166,17 @@ elif page == "Admin":
         pending = df[df["Approved"] != "Yes"]
 
         for i, row in pending.iterrows():
+            approved_count = len(
+                df[(df["Email"] == row["Email"]) & (df["Approved"] == "Yes")]
+            )
+
+            max_allowed = int(row["MaxShifts"])
             label = f"{row['Name']} — {row['Day']} {row['Shift']}"
+
+            if approved_count >= max_allowed:
+                st.warning(f"{row['Name']} reached max shifts ({max_allowed})")
+                continue
+
             if st.checkbox(label, key=f"approve_{i}"):
                 sheet = connect_sheet()
                 sheet.update_cell(i + 2, 6, "Yes")
